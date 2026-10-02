@@ -24,12 +24,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Secure authentication to AWS using OIDC (No long-lived access keys!)
+      # Secure authentication to AWS using OIDC
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # You will need to create this IAM Role in AWS and attach an OIDC trust policy
-          role-to-assume: arn:aws:iam::934192905834:role/GitHubActionsECRBuildRole
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: GitHubActions-Backend-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
