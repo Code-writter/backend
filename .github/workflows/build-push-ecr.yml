@@ -1,0 +1,53 @@
+name: Build and Push Backend to ECR
+
+on:
+  push:
+    branches:
+      - main  # Triggers automatically when you push to the main branch
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+permissions:
+  id-token: write   # Required for AWS OIDC authentication
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "934192905834"
+  ECR_REPOSITORY: backend
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Secure authentication to AWS using OIDC (No long-lived access keys!)
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # You will need to create this IAM Role in AWS and attach an OIDC trust policy
+          role-to-assume: arn:aws:iam::934192905834:role/GitHubActionsECRBuildRole
+          role-session-name: GitHubActions-Backend-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag, and Push Docker Image
+        id: build-image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }} # Uses the unique Git commit hash
+        run: |
+          echo "Building image..."
+          docker build -t $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $REGISTRY/$ECR_REPOSITORY:latest .
+          
+          echo "Pushing image tags to ECR..."
+          docker push $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$ECR_REPOSITORY:latest
+          
+          echo "Deployment image ready: $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
