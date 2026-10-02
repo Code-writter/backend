@@ -3,11 +3,11 @@ name: Build and Push Backend to ECR
 on:
   push:
     branches:
-      - main  # Triggers automatically when you push to the main branch
-  workflow_dispatch: # Allows manual trigger from GitHub UI
+      - main
+  workflow_dispatch:
 
+# The permissions block no longer requires 'id-token: write' since you are not using OIDC
 permissions:
-  id-token: write   # Required for AWS OIDC authentication
   contents: read
 
 env:
@@ -24,12 +24,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Secure authentication to AWS using OIDC
+      # Authentication using long-lived IAM User Access Keys
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: GitHubActions-Backend-${{ github.run_id }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
@@ -40,7 +40,7 @@ jobs:
         id: build-image
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }} # Uses the unique Git commit hash
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           echo "Building image..."
           docker build -t $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $REGISTRY/$ECR_REPOSITORY:latest .
